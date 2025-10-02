@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Shield, RefreshCw, CheckCircle, XCircle, AlertTriangle, Info, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Shield, RefreshCw, CheckCircle, XCircle, AlertTriangle, Info, Eye, EyeOff, Database, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
 interface AdminStatus {
@@ -20,7 +20,37 @@ export const AdminDebugPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRawData, setShowRawData] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [dbConnectionStatus, setDbConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  const [currentDbUrl, setCurrentDbUrl] = useState<string>('');
+  const [functionsExist, setFunctionsExist] = useState(false);
+
+  useEffect(() => {
+    // Get the current database URL from environment
+    const dbUrl = import.meta.env.VITE_SUPABASE_URL;
+    setCurrentDbUrl(dbUrl || 'Not configured');
+
+    // Check database connection on mount
+    testDatabaseConnection();
+  }, []);
+
+  const testDatabaseConnection = async () => {
+    setDbConnectionStatus('checking');
+    try {
+      // Simple query to test connection
+      const { error } = await supabase.from('user_profiles').select('count').limit(1);
+
+      if (error) {
+        console.error('Database connection test failed:', error);
+        setDbConnectionStatus('error');
+      } else {
+        setDbConnectionStatus('connected');
+      }
+    } catch (err) {
+      console.error('Database connection test error:', err);
+      setDbConnectionStatus('error');
+    }
+  };
 
   const checkAdminStatus = async () => {
     setIsLoading(true);
@@ -31,10 +61,22 @@ export const AdminDebugPanel: React.FC = () => {
 
       if (statusError) {
         console.error('Error checking admin status:', statusError);
-        setError(`Failed to check admin status: ${statusError.message}`);
+
+        // Check if error is due to missing function
+        if (statusError.message.includes('Could not find the function') ||
+            statusError.message.includes('does not exist')) {
+          setFunctionsExist(false);
+          setError(
+            'Database setup incomplete: Required admin functions are missing. ' +
+            'Please run the database migrations to set up admin functionality.'
+          );
+        } else {
+          setError(`Failed to check admin status: ${statusError.message}`);
+        }
         return;
       }
 
+      setFunctionsExist(true);
       console.log('Admin status result:', status);
       setAdminStatus(status as AdminStatus);
     } catch (err) {
@@ -141,14 +183,58 @@ export const AdminDebugPanel: React.FC = () => {
             </button>
           </div>
 
+          {/* Database Connection Status */}
+          <div className="p-4 bg-gray-50 dark:bg-dark-200 rounded-xl border border-gray-200 dark:border-dark-400">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Database className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Database Connection</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 font-mono">{currentDbUrl}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                {dbConnectionStatus === 'checking' && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Checking...</span>
+                )}
+                {dbConnectionStatus === 'connected' && (
+                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                )}
+                {dbConnectionStatus === 'error' && (
+                  <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Error Display */}
           {error && (
             <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/50 rounded-xl">
               <div className="flex items-start space-x-3">
                 <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-medium text-red-800 dark:text-red-300">Error</p>
                   <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
+
+                  {!functionsExist && (
+                    <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-500/50">
+                      <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Setup Required:</p>
+                      <ol className="text-xs text-yellow-700 dark:text-yellow-400 space-y-1 list-decimal list-inside">
+                        <li>Apply the database migration: <code className="bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">20251002120000_comprehensive_admin_rls_fix.sql</code></li>
+                        <li>This will create the required admin functions and policies</li>
+                        <li>Refresh this page after applying the migration</li>
+                      </ol>
+                      <a
+                        href="https://supabase.com/dashboard/project/rixmudvtbfkjpwjoefon/sql/new"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Open Supabase SQL Editor</span>
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
