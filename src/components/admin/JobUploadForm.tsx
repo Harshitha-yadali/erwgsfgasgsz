@@ -1,5 +1,5 @@
 // src/components/admin/JobUploadForm.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,12 +20,16 @@ import {
   Globe,
   Target,
   FileText,
-  Image
+  Image,
+  RotateCw,
+  Trash2,
+  Info
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { jobsService } from '../../services/jobsService';
 import { JobListing } from '../../types/jobs';
 import { ImageUpload } from './ImageUpload';
+import { useJobFormAutoSave } from '../../hooks/useJobFormAutoSave';
 
 // Zod schema for job listing validation
 const jobListingSchema = z.object({
@@ -53,6 +57,8 @@ export const JobUploadForm: React.FC = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string>('');
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [showDraftNotification, setShowDraftNotification] = useState(false);
 
   const {
     register,
@@ -72,6 +78,42 @@ export const JobUploadForm: React.FC = () => {
 
   const watchedPackageType = watch('package_type');
   const watchedLocationType = watch('location_type');
+  const formData = watch();
+
+  const { saveStatus, loadDraft, deleteDraft, clearDraft } = useJobFormAutoSave({
+    formData,
+    enabled: !isSubmitting && draftLoaded,
+    debounceMs: 2000,
+  });
+
+  useEffect(() => {
+    const restoreDraft = async () => {
+      const draft = await loadDraft();
+      if (draft) {
+        Object.entries(draft).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            setValue(key as keyof JobFormData, value as any, {
+              shouldDirty: false,
+            });
+          }
+        });
+        if (draft.company_logo_url) {
+          setCompanyLogoUrl(draft.company_logo_url);
+        }
+        setShowDraftNotification(true);
+        setTimeout(() => setShowDraftNotification(false), 5000);
+      }
+      setDraftLoaded(true);
+    };
+    restoreDraft();
+  }, [loadDraft, setValue]);
+
+  const handleClearDraft = () => {
+    clearDraft();
+    reset();
+    setCompanyLogoUrl('');
+    setShowDraftNotification(false);
+  };
 
   const onSubmit = async (data: JobFormData) => {
     setIsSubmitting(true);
@@ -98,6 +140,7 @@ export const JobUploadForm: React.FC = () => {
 
       await jobsService.createJobListing(jobData);
       setSubmitSuccess(true);
+      await deleteDraft();
       reset();
       setCompanyLogoUrl('');
       setTimeout(() => {
@@ -154,14 +197,63 @@ export const JobUploadForm: React.FC = () => {
           {/* Form */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden dark:bg-dark-100 dark:border-dark-300">
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 border-b border-gray-200 dark:from-dark-200 dark:to-dark-300 dark:border-dark-400">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center">
-                <Briefcase className="w-5 h-5 mr-2 text-blue-600 dark:text-neon-cyan-400" />
-                Job Details
-              </h2>
-              <p className="text-gray-600 dark:text-gray-300 mt-1">Fill in all the required information for the job listing</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                    <Briefcase className="w-5 h-5 mr-2 text-blue-600 dark:text-neon-cyan-400" />
+                    Job Details
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300 mt-1">Fill in all the required information for the job listing</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {saveStatus.status === 'saving' && (
+                    <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400">
+                      <RotateCw className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Saving...</span>
+                    </div>
+                  )}
+                  {saveStatus.status === 'saved' && saveStatus.lastSaved && (
+                    <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-sm">Saved {new Date(saveStatus.lastSaved).toLocaleTimeString()}</span>
+                    </div>
+                  )}
+                  {saveStatus.status === 'error' && (
+                    <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm">Save failed</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+              {showDraftNotification && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl dark:bg-blue-900/20 dark:border-blue-500/50">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start">
+                      <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-3 mt-0.5" />
+                      <div>
+                        <p className="text-blue-700 dark:text-blue-300 text-sm font-medium">
+                          Draft restored from previous session
+                        </p>
+                        <p className="text-blue-600 dark:text-blue-400 text-xs mt-1">
+                          Your form data has been automatically restored. Continue editing or start fresh.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearDraft}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 flex items-center space-x-1 text-sm"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Clear Draft</span>
+                    </button>
+                  </div>
+                </div>
+              )}
               {/* Company Logo Upload Section */}
               <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-dark-200 dark:to-dark-300 p-6 rounded-xl border border-blue-100 dark:border-dark-400">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
@@ -447,13 +539,25 @@ export const JobUploadForm: React.FC = () => {
 
               {/* Submit Button */}
               <div className="flex justify-between pt-6 border-t border-gray-200 dark:border-dark-300">
-                <button
-                  type="button"
-                  onClick={() => navigate('/')}
-                  className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  {isDirty && (
+                    <button
+                      type="button"
+                      onClick={handleClearDraft}
+                      className="border-2 border-red-600 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold py-3 px-6 rounded-xl transition-colors flex items-center space-x-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden sm:inline">Clear Draft</span>
+                    </button>
+                  )}
+                </div>
                 <button
                   type="submit"
                   disabled={isSubmitting || !isDirty}
