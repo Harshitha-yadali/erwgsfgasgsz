@@ -4,6 +4,8 @@ export interface JobListing {
   id: string;
   company_name: string;
   company_logo_url?: string;
+  company_website?: string;
+  company_description?: string;
   role_title: string;
   package_amount?: number;
   package_type?: 'CTC' | 'stipend' | 'hourly';
@@ -13,6 +15,7 @@ export interface JobListing {
   experience_required: string;
   qualification: string;
   short_description: string;
+  description: string;
   full_description: string;
   application_link: string;
   posted_date: string;

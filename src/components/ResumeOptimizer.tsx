@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react'; // Import useCallback
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, AlertCircle, Plus, Sparkles, ArrowLeft, X } from 'lucide-react';
+import { FileText, AlertCircle, Plus, Sparkles, ArrowLeft, X, Send } from 'lucide-react';
 import { ResumePreview } from './ResumePreview';
 import { ResumeExportSettings } from './ResumeExportSettings';
 import { ProjectAnalysisModal } from './ProjectAnalysisModal';
@@ -20,7 +20,7 @@ import { authService } from '../services/authService'; // ADDED: Import authServ
 import { ResumeData, UserType, MatchScore, DetailedScore, ExtractionResult, ScoringMode } from '../types/resume';
 import { ExportOptions, defaultExportOptions } from '../types/export';
 import { exportToPDF, exportToWord } from '../utils/exportUtils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ExportButtons } from './ExportButtons';
 
 // src/components/ResumeOptimizer.tsx
@@ -72,12 +72,15 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
   toolProcessTrigger,
   setToolProcessTrigger
 }) => {
-  const { user, revalidateUserSession } = useAuth(); // MODIFIED: Added revalidateUserSession
+  const { user, revalidateUserSession } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const jobContext = location.state as { jobId?: string; jobDescription?: string; roleTitle?: string; companyName?: string; fromJobApplication?: boolean } | null;
 
   const [extractionResult, setExtractionResult] = useState<ExtractionResult>({ text: '', extraction_mode: 'TEXT', trimmed: false });
-  const [jobDescription, setJobDescription] = useState('');
-  const [targetRole, setTargetRole] = useState('');
+  const [jobDescription, setJobDescription] = useState(jobContext?.jobDescription || '');
+  const [targetRole, setTargetRole] = useState(jobContext?.roleTitle || '');
   const [userType, setUserType] = useState<UserType>('fresher');
   const [scoringMode, setScoringMode] = useState<ScoringMode>('general');
   const [autoScoreOnUpload, setAutoScoreOnUpload] = useState(true);
@@ -622,13 +625,44 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
           <>
             {optimizedResume ? <ResumePreview resumeData={optimizedResume} userType={userType} /> : null}
             {optimizedResume && (
-              <ExportButtons
-                resumeData={optimizedResume}
-                userType={userType}
-                targetRole={targetRole}
-                onShowProfile={onShowProfile}
-                walletRefreshKey={walletRefreshKey}
-              />
+              <>
+                <ExportButtons
+                  resumeData={optimizedResume}
+                  userType={userType}
+                  targetRole={targetRole}
+                  onShowProfile={onShowProfile}
+                  walletRefreshKey={walletRefreshKey}
+                />
+                {jobContext?.fromJobApplication && jobContext.jobId && (
+                  <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl border-2 border-green-200 dark:border-green-700">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">
+                          Resume Optimized Successfully!
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          Your resume has been optimized for {jobContext.roleTitle} at {jobContext.companyName}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/jobs/${jobContext.jobId}/apply-form`, {
+                        state: {
+                          optimizedResumeData: optimizedResume,
+                          fromOptimizer: true
+                        }
+                      })}
+                      className="w-full py-4 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center space-x-3 transform hover:scale-105"
+                    >
+                      <Send className="w-6 h-6" />
+                      <span>Apply Now to {jobContext.companyName}</span>
+                    </button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
+                      Make sure to download your optimized resume before applying
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </>
         ),

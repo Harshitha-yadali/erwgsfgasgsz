@@ -17,13 +17,15 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  ArrowRight
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 import { JobListing, AutoApplyResult, OptimizedResume } from '../../types/jobs';
 import { jobsService } from '../../services/jobsService';
 import { autoApplyOrchestrator } from '../../services/autoApplyOrchestrator';
 import { profileResumeService } from '../../services/profileResumeService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface JobCardProps {
   job: JobListing;
@@ -40,9 +42,10 @@ export const JobCard: React.FC<JobCardProps> = ({
   onAutoApply,
   isAuthenticated,
   onShowAuth,
-  onCompleteProfile // NEW: Destructure the new prop
+  onCompleteProfile
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isAutoApplying, setIsAutoApplying] = useState(false);
   const [optimizedResume, setOptimizedResume] = useState<OptimizedResume | null>(null);
@@ -68,33 +71,13 @@ export const JobCard: React.FC<JobCardProps> = ({
     checkProfile();
   }, [isAuthenticated, user]);
 
-  const handleManualApplyClick = async () => {
+  const handleManualApplyClick = () => {
     if (!isAuthenticated) {
       onShowAuth();
       return;
     }
 
-    setIsOptimizing(true);
-    setError(null);
-
-    try {
-      let currentOptimizedResume = optimizedResume;
-      if (!currentOptimizedResume) {
-        // If resume not yet optimized, do it now
-        currentOptimizedResume = await jobsService.optimizeResumeForJob(job.id);
-        setOptimizedResume(currentOptimizedResume);
-      }
-      
-      if (currentOptimizedResume) {
-        onManualApply(job, currentOptimizedResume);
-      } else {
-        throw new Error('Failed to get optimized resume for manual apply.');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to optimize resume for manual apply');
-    } finally {
-      setIsOptimizing(false);
-    }
+    navigate(`/jobs/${job.id}/apply`);
   };
 
   const handleAutoApplyClick = async () => {
@@ -296,47 +279,16 @@ export const JobCard: React.FC<JobCardProps> = ({
           </button>
 
           <button
-            onClick={handleAutoApplyClick}
-            disabled={isOptimizing || isAutoApplying || (isAuthenticated && !profileValidation?.isComplete)}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${
-              isOptimizing || isAutoApplying || (isAuthenticated && !profileValidation?.isComplete)
-                ? 'bg-gray-400 text-white cursor-not-allowed'
-                : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl'
-            }`}
+            disabled={true}
+            className="flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2 bg-gray-300 text-gray-600 cursor-not-allowed relative overflow-hidden dark:bg-gray-700 dark:text-gray-400"
+            title="Feature launching soon"
           >
-            {isAutoApplying ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Auto-Applying...</span>
-              </>
-            ) : (
-              <>
-                <Zap className="w-4 h-4" />
-                <span>
-                  {isAuthenticated && !profileValidation?.isComplete 
-                    ? 'Complete Profile' 
-                    : 'Auto Apply'}
-                </span>
-              </>
-            )}
+            <Sparkles className="w-4 h-4 animate-pulse" />
+            <span>Coming Soon</span>
+            <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs px-2 py-0.5 rounded-bl-lg font-bold">SOON</div>
           </button>
         </div>
         
-        {/* Profile Completion Warning */}
-        {isAuthenticated && profileValidation && !profileValidation.isComplete && (
-          <button
-            onClick={onCompleteProfile} // Make the warning clickable
-            className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded-lg dark:bg-orange-900/20 dark:border-orange-500/50 w-full text-left flex items-center justify-between hover:bg-orange-100 transition-colors duration-200 group"
-          >
-            <div className="flex items-center text-orange-700 dark:text-orange-300">
-              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-              <span className="text-xs">
-                Complete your profile to enable auto-apply: {profileValidation.missingFields.join(', ')}
-              </span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-orange-700 dark:text-orange-300 group-hover:translate-x-1 transition-transform duration-200" />
-          </button>
-        )}
       </div>
     </motion.div>
   );

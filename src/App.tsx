@@ -23,11 +23,13 @@ import { PlanSelectionModal } from './components/payment/PlanSelectionModal';
 import { PricingPage } from './components/pages/PricingPage';
 import { OfferOverlay } from './components/OfferOverlay';
 import { CareersPage } from './components/pages/CareersPage';
-import { JobDetailsPage } from './components/pages/JobDetailsPage'; // Import JobDetailsPage
-import { JobsPage } from './components/pages/JobsPage'; // Import JobsPage
-import { MyApplicationsPage } from './components/pages/MyApplicationsPage'; // Import MyApplicationsPage
-import { AdminRoute } from './components/admin/AdminRoute'; // Import AdminRoute
-import { JobUploadForm } from './components/admin/JobUploadForm'; // Import JobUploadForm
+import { JobDetailsPage } from './components/pages/JobDetailsPage';
+import { JobsPage } from './components/pages/JobsPage';
+import { MyApplicationsPage } from './components/pages/MyApplicationsPage';
+import { JobApplicationPage } from './components/pages/JobApplicationPage';
+import { JobApplicationFormPage } from './components/pages/JobApplicationFormPage';
+import { AdminRoute } from './components/admin/AdminRoute';
+import { JobUploadForm } from './components/admin/JobUploadForm';
 
 function App() {
   const { isAuthenticated, user, markProfilePromptSeen, isLoading } = useAuth();
@@ -426,14 +428,16 @@ function App() {
         <Route path="/all-tools" element={<ToolsAndPagesNavigation {...commonPageProps} />} />
         <Route path="/pricing" element={<PricingPage onShowAuth={handleShowAuth} onShowSubscriptionPlans={handleShowPlanSelection} />} />
         <Route path="/careers" element={<CareersPage {...commonPageProps} />} />
-        <Route path="/careers/:jobId" element={<JobDetailsPage {...commonPageProps} />} /> {/* NEW ROUTE */}
-        <Route path="/jobs" element={<JobsPage {...commonPageProps} onShowProfile={handleShowProfile} />} /> {/* NEW ROUTE - Added onShowProfile */}
-        <Route path="/jobs/applications" element={<MyApplicationsPage {...commonPageProps} />} /> {/* NEW ROUTE */}
+        <Route path="/careers/:jobId" element={<JobDetailsPage {...commonPageProps} />} />
+        <Route path="/jobs" element={<JobsPage {...commonPageProps} onShowProfile={handleShowProfile} />} />
+        <Route path="/jobs/:jobId/apply" element={<JobApplicationPage />} />
+        <Route path="/jobs/:jobId/apply-form" element={<JobApplicationFormPage />} />
+        <Route path="/jobs/applications" element={<MyApplicationsPage {...commonPageProps} />} />
         <Route path="/admin/jobs/new" element={
           <AdminRoute>
             <JobUploadForm />
           </AdminRoute>
-        } /> {/* NEW ROUTE: Admin job upload */}
+        } />
       </Routes>
 
       {showMobileMenu && (
