@@ -1,24 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Plus,
-  Search,
-  Filter,
-  Edit,
-  Trash2,
-  Eye,
-  ToggleLeft,
-  ToggleRight,
-  ArrowLeft,
-  Briefcase,
-  MapPin,
-  Clock,
-  IndianRupee,
-  Building2,
-  AlertCircle,
-  Loader2,
-  CheckCircle
-} from 'lucide-react';
+import { Plus, Search, Filter, CreditCard as Edit, Trash2, Eye, ToggleLeft, ToggleRight, ArrowLeft, Briefcase, MapPin, Clock, IndianRupee, Building2, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { JobListing } from '../../types/jobs';
 
