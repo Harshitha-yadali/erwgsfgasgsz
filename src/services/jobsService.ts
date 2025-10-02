@@ -188,11 +188,81 @@ class JobsService {
     hasMore: boolean;
   }> {
     try {
-      const result = await fetchJobListings(filters, limit, offset);
-      return result;
+      console.log('JobsService: Fetching job listings from database with filters:', filters);
+
+      // Start building the query
+      let query = supabase
+        .from('job_listings')
+        .select('*', { count: 'exact' })
+        .eq('is_active', true);
+
+      // Apply filters
+      if (filters.domain) {
+        query = query.eq('domain', filters.domain);
+      }
+
+      if (filters.location_type) {
+        query = query.eq('location_type', filters.location_type);
+      }
+
+      if (filters.experience_required) {
+        query = query.eq('experience_required', filters.experience_required);
+      }
+
+      if (filters.package_min) {
+        query = query.gte('package_amount', filters.package_min);
+      }
+
+      if (filters.package_max) {
+        query = query.lte('package_amount', filters.package_max);
+      }
+
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`role_title.ilike.%${searchTerm}%,company_name.ilike.%${searchTerm}%,domain.ilike.%${searchTerm}%`);
+      }
+
+      // Apply sorting
+      if (filters.sort_by) {
+        const ascending = filters.sort_order === 'asc';
+        query = query.order(filters.sort_by, { ascending });
+      } else {
+        // Default sorting by posted_date (newest first)
+        query = query.order('posted_date', { ascending: false });
+      }
+
+      // Apply pagination
+      query = query.range(offset, offset + limit - 1);
+
+      // Execute query
+      const { data: jobs, error, count } = await query;
+
+      if (error) {
+        console.error('JobsService: Database error:', error);
+        console.log('JobsService: Falling back to sample data');
+        return await fetchJobListings(filters, limit, offset);
+      }
+
+      console.log(`JobsService: Fetched ${jobs?.length || 0} jobs from database (total: ${count})`);
+
+      // If no jobs found in database, fall back to sample data
+      if (!jobs || jobs.length === 0) {
+        console.log('JobsService: No jobs in database, using sample data');
+        return await fetchJobListings(filters, limit, offset);
+      }
+
+      const total = count || 0;
+      const hasMore = offset + limit < total;
+
+      return {
+        jobs,
+        total,
+        hasMore
+      };
     } catch (error) {
-      console.error('Error fetching job listings:', error);
-      throw new Error('Failed to fetch job listings');
+      console.error('JobsService: Error fetching job listings:', error);
+      console.log('JobsService: Falling back to sample data');
+      return await fetchJobListings(filters, limit, offset);
     }
   }
 
