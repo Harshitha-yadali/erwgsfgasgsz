@@ -176,13 +176,23 @@ export const JobCard: React.FC<JobCardProps> = ({
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-4">
             {job.company_logo_url ? (
-              <img
-                src={job.company_logo_url}
-                alt={`${job.company_name} logo`}
-                className="w-12 h-12 rounded-lg object-cover"
-              />
+              <div className="w-14 h-14 bg-white dark:bg-dark-200 rounded-lg border border-gray-200 dark:border-dark-300 flex items-center justify-center p-2">
+                <img
+                  src={job.company_logo_url}
+                  alt={`${job.company_name} logo`}
+                  className="max-w-full max-h-full object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xl">${job.company_name.charAt(0)}</div>`;
+                    }
+                  }}
+                />
+              </div>
             ) : (
-              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+              <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xl">
                 {job.company_name.charAt(0)}
               </div>
             )}

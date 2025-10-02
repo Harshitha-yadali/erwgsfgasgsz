@@ -30,6 +30,8 @@ import { JobApplicationPage } from './components/pages/JobApplicationPage';
 import { JobApplicationFormPage } from './components/pages/JobApplicationFormPage';
 import { AdminRoute } from './components/admin/AdminRoute';
 import { JobUploadForm } from './components/admin/JobUploadForm';
+import { AdminJobsPage } from './components/admin/AdminJobsPage';
+import { JobEditPage } from './components/admin/JobEditPage';
 
 function App() {
   const { isAuthenticated, user, markProfilePromptSeen, isLoading } = useAuth();
@@ -433,9 +435,19 @@ function App() {
         <Route path="/jobs/:jobId/apply" element={<JobApplicationPage />} />
         <Route path="/jobs/:jobId/apply-form" element={<JobApplicationFormPage />} />
         <Route path="/jobs/applications" element={<MyApplicationsPage {...commonPageProps} />} />
+        <Route path="/admin/jobs" element={
+          <AdminRoute>
+            <AdminJobsPage />
+          </AdminRoute>
+        } />
         <Route path="/admin/jobs/new" element={
           <AdminRoute>
             <JobUploadForm />
+          </AdminRoute>
+        } />
+        <Route path="/admin/jobs/:jobId/edit" element={
+          <AdminRoute>
+            <JobEditPage />
           </AdminRoute>
         } />
       </Routes>
@@ -465,8 +477,9 @@ function App() {
                   {[
                     { id: '/', label: 'Home', icon: <Home className="w-5 h-5" /> },
                     { id: '/about', label: 'About Us', icon: <Info className="w-5 h-5" /> },
-                    { id: '/careers', label: 'Careers', icon: <Briefcase className="w-5 h-5" /> }, // ADDED: Careers link
-                    { id: '/jobs', label: 'Explore Jobs', icon: <Briefcase className="w-5 h-5" /> }, // ADDED: Jobs link
+                    { id: '/careers', label: 'Careers', icon: <Briefcase className="w-5 h-5" /> },
+                    { id: '/jobs', label: 'Explore Jobs', icon: <Briefcase className="w-5 h-5" /> },
+                    ...(user?.role === 'admin' ? [{ id: '/admin/jobs', label: 'Admin Panel', icon: <Crown className="w-5 h-5" /> }] : []),
                     { id: '/tutorials', label: 'Tutorials', icon: <BookOpen className="w-5 h-5" /> },
                     { id: '/contact', label: 'Contact', icon: <Phone className="w-5 h-5" /> },
                     ...(isAuthenticated ? [{ id: 'wallet', label: 'Referral & Wallet', icon: <Wallet className="w-5 h-5" /> }] : []),

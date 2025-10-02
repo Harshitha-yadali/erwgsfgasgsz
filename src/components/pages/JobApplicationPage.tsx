@@ -149,13 +149,23 @@ export const JobApplicationPage: React.FC = () => {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
               <div className="flex items-start space-x-4 mb-4 md:mb-0">
                 {job.company_logo_url ? (
-                  <img
-                    src={job.company_logo_url}
-                    alt={`${job.company_name} logo`}
-                    className="w-16 h-16 rounded-xl object-cover shadow-md"
-                  />
+                  <div className="w-20 h-20 bg-white dark:bg-dark-200 rounded-xl border-2 border-gray-200 dark:border-dark-300 flex items-center justify-center p-3 shadow-lg">
+                    <img
+                      src={job.company_logo_url}
+                      alt={`${job.company_name} logo`}
+                      className="max-w-full max-h-full object-contain"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `<div class="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-2xl">${job.company_name.charAt(0)}</div>`;
+                        }
+                      }}
+                    />
+                  </div>
                 ) : (
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-2xl shadow-md">
+                  <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
                     {job.company_name.charAt(0)}
                   </div>
                 )}
