@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react'; // Import useCallback
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, AlertCircle, Plus, Sparkles, ArrowLeft, X, Send } from 'lucide-react';
+import { FileText, AlertCircle, Plus, Sparkles, ArrowLeft, X, Send, Briefcase, Building2, Target, Zap } from 'lucide-react';
 import { ResumePreview } from './ResumePreview';
 import { ResumeExportSettings } from './ResumeExportSettings';
 import { ProjectAnalysisModal } from './ProjectAnalysisModal';
@@ -690,12 +690,45 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
         {!optimizedResume ? (
           <>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => jobContext?.fromJobApplication && jobContext.jobId ? navigate(`/jobs/${jobContext.jobId}/apply`) : navigate('/')}
               className="mb-6 bg-gradient-to-r from-neon-cyan-500 to-neon-blue-500 text-white hover:from-neon-cyan-400 hover:to-neon-blue-400 active:from-neon-cyan-600 active:to-neon-blue-600 shadow-md hover:shadow-neon-cyan py-3 px-5 rounded-xl inline-flex items-center space-x-2 transition-all duration-200"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span className="hidden sm:block">Back to Home</span>
+              <span className="hidden sm:block">{jobContext?.fromJobApplication ? 'Back to Job' : 'Back to Home'}</span>
             </button>
+
+            {jobContext?.fromJobApplication && jobContext.roleTitle && jobContext.companyName && (
+              <div className="mb-6 bg-gradient-to-r from-cyan-50 via-blue-50 to-blue-100 dark:from-cyan-900/20 dark:via-blue-900/20 dark:to-blue-900/30 rounded-2xl p-6 border-2 border-cyan-200 dark:border-cyan-700 shadow-xl">
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <Briefcase className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Optimizing Resume For:</h3>
+                      <span className="bg-gradient-to-r from-yellow-400 to-orange-400 px-3 py-1 rounded-full text-xs font-bold text-gray-900 shadow-md">
+                        JOB-SPECIFIC
+                      </span>
+                    </div>
+                    <p className="text-xl font-semibold text-cyan-700 dark:text-cyan-300">{jobContext.roleTitle}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center space-x-1 mt-1">
+                      <Building2 className="w-4 h-4" />
+                      <span>{jobContext.companyName}</span>
+                    </p>
+                    <div className="mt-3 flex items-center space-x-2">
+                      <div className="flex items-center space-x-1 text-xs text-cyan-700 dark:text-cyan-400 bg-cyan-100 dark:bg-cyan-900/30 px-2 py-1 rounded-full">
+                        <Target className="w-3 h-3" />
+                        <span>Tailored optimization</span>
+                      </div>
+                      <div className="flex items-center space-x-1 text-xs text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-full">
+                        <Zap className="w-3 h-3" />
+                        <span>ATS-optimized</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {isAuthenticated && !loadingSubscription && (
               <div className="relative text-center mb-8 z-10">
@@ -733,6 +766,57 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
           </>
         ) : (
           <div className="max-w-7xl mx-auto space-y-6">
+            {jobContext?.fromJobApplication && jobContext.jobId && (
+              <div className="bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-6 border-2 border-green-300 dark:border-green-700 shadow-2xl">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg animate-pulse">
+                      <CheckCircle className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Resume Optimized Successfully!</h3>
+                        <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md animate-bounce">
+                          READY
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                        Your resume has been optimized for <span className="font-semibold text-green-700 dark:text-green-400">{jobContext.roleTitle}</span> at <span className="font-semibold text-green-700 dark:text-green-400">{jobContext.companyName}</span>
+                      </p>
+                      <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+                        <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
+                        <span>ATS-optimized</span>
+                        <span>•</span>
+                        <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
+                        <span>Keyword-matched</span>
+                        <span>•</span>
+                        <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
+                        <span>Ready to download</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/jobs/${jobContext.jobId}/apply-form`, {
+                      state: {
+                        optimizedResumeData: optimizedResume,
+                        fromOptimizer: true
+                      }
+                    })}
+                    className="group flex-shrink-0 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 text-white px-6 py-4 rounded-xl font-bold shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center space-x-3 transform hover:scale-105"
+                  >
+                    <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    <span>Apply Now</span>
+                  </button>
+                </div>
+                <div className="mt-4 bg-white/50 dark:bg-black/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center space-x-1">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>Make sure to download your optimized resume before applying for future reference</span>
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="text-center flex flex-col items-center gap-4">
               <button
                 onClick={() => setActiveTab('resume')}

@@ -260,38 +260,52 @@ export const JobApplicationPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <button
               onClick={handleOptimizeResume}
-              className="group bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-left"
+              className="group relative bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600 hover:from-cyan-400 hover:via-blue-400 hover:to-blue-500 text-white rounded-2xl p-8 shadow-2xl hover:shadow-cyan-500/50 transition-all duration-500 transform hover:scale-[1.02] text-left border-2 border-white/20 hover:border-white/40 overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <Sparkles className="w-8 h-8" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-500 -translate-y-16 translate-x-16"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-cyan-300/20 rounded-full blur-2xl group-hover:bg-cyan-300/30 transition-all duration-500 translate-y-12 -translate-x-12"></div>
+
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-16 h-16 bg-white/30 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <Sparkles className="w-8 h-8 animate-pulse" />
+                  </div>
+                  <div className="bg-gradient-to-r from-yellow-400 to-orange-400 px-4 py-1.5 rounded-full text-xs font-bold shadow-lg text-gray-900 animate-pulse">
+                    ⭐ RECOMMENDED
+                  </div>
                 </div>
-                <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold">
-                  Recommended
-                </div>
-              </div>
-              <h3 className="text-2xl font-bold mb-3">Optimize Resume with AI</h3>
-              <p className="text-blue-100 mb-4 leading-relaxed">
-                Get your resume optimized specifically for this job using our AI-powered ATS scoring system. Increase your chances of getting shortlisted.
-              </p>
-              <ul className="space-y-2 mb-6">
-                <li className="flex items-start space-x-2">
-                  <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">ATS score analysis and optimization</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Keyword matching for this specific job</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Download optimized resume PDF</span>
-                </li>
-              </ul>
-              <div className="flex items-center justify-between text-sm font-semibold">
-                <span>Start Optimization</span>
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center group-hover:translate-x-2 transition-transform duration-300">
-                  <Sparkles className="w-5 h-5" />
+
+                <h3 className="text-2xl font-bold mb-3 drop-shadow-lg">Optimize Resume with AI</h3>
+                <p className="text-cyan-50 mb-4 leading-relaxed text-sm">
+                  Get your resume optimized specifically for this job using our AI-powered ATS scoring system. Increase your chances of getting shortlisted.
+                </p>
+
+                <ul className="space-y-2.5 mb-6">
+                  <li className="flex items-start space-x-2 group/item">
+                    <div className="mt-0.5 bg-white/20 rounded-full p-0.5">
+                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    </div>
+                    <span className="text-sm font-medium">ATS score analysis and optimization</span>
+                  </li>
+                  <li className="flex items-start space-x-2 group/item">
+                    <div className="mt-0.5 bg-white/20 rounded-full p-0.5">
+                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    </div>
+                    <span className="text-sm font-medium">Keyword matching for this specific job</span>
+                  </li>
+                  <li className="flex items-start space-x-2 group/item">
+                    <div className="mt-0.5 bg-white/20 rounded-full p-0.5">
+                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    </div>
+                    <span className="text-sm font-medium">Download optimized resume PDF</span>
+                  </li>
+                </ul>
+
+                <div className="flex items-center justify-between bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 group-hover:bg-white/20 transition-all duration-300">
+                  <span className="font-bold text-base">Start Optimization</span>
+                  <div className="w-8 h-8 bg-white/30 rounded-full flex items-center justify-center group-hover:translate-x-2 group-hover:scale-110 transition-all duration-300">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
                 </div>
               </div>
             </button>
