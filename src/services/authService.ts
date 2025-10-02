@@ -68,16 +68,16 @@ class AuthService {
       // Don't fail login if device tracking fails
     }
 
-    // After login, we don't need to fetch the profile here.
-    // The AuthContext will handle fetching the full profile after the SIGNED_IN_ event.
-    // We return a minimal User object based on the Supabase auth user.
+    const isAdmin = data.user.email === 'primoboostai@gmail.com';
+
     const userResult: User = {
       id: data.user.id,
-      name: data.user.email?.split('@')[0] || 'User', // Placeholder name
+      name: data.user.email?.split('@')[0] || 'User',
       email: data.user.email!,
       isVerified: data.user.email_confirmed_at !== null,
       createdAt: data.user.created_at || new Date().toISOString(),
       lastLogin: new Date().toISOString(),
+      role: isAdmin ? 'admin' : 'client',
     };
     console.log('AuthService: Login process completed. Returning minimal user data.');
     return userResult;
@@ -226,6 +226,8 @@ class AuthService {
       const profile = await this.fetchUserProfile(session.user.id);
       console.log('AuthService: User profile fetched for getCurrentUser. Profile:', profile ? profile.full_name : 'none');
 
+      const isAdmin = session.user.email === 'primoboostai@gmail.com';
+
       const userResult: User = {
         id: session.user.id,
         name: profile?.full_name || session.user.email?.split('@')[0] || 'User',
@@ -239,8 +241,8 @@ class AuthService {
         createdAt: session.user.created_at || new Date().toISOString(),
         lastLogin: new Date().toISOString(),
         hasSeenProfilePrompt: profile?.has_seen_profile_prompt || false,
-        resumesCreatedCount: profile?.resumes_created_count || 0, // ADDED: Map new field
-        role: profile?.role || 'client', // NEW: Map role field
+        resumesCreatedCount: profile?.resumes_created_count || 0,
+        role: isAdmin ? 'admin' : 'client',
       };
       console.log('AuthService: getCurrentUser completed. Returning user data.');
       return userResult;

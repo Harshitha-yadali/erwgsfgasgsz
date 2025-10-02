@@ -30,7 +30,6 @@ import { jobsService } from '../../services/jobsService';
 import { JobListing } from '../../types/jobs';
 import { ImageUpload } from './ImageUpload';
 import { useJobFormAutoSave } from '../../hooks/useJobFormAutoSave';
-import { AdminDebugPanel } from './AdminDebugPanel';
 
 // Zod schema for job listing validation
 const jobListingSchema = z.object({
@@ -182,11 +181,6 @@ export const JobUploadForm: React.FC = () => {
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Admin Debug Panel */}
-          <div className="mb-6">
-            <AdminDebugPanel />
-          </div>
-
           {/* Hero Section */}
           <div className="text-center mb-8">
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">

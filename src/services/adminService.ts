@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 
+const ADMIN_EMAIL = 'primoboostai@gmail.com';
+
 export interface AdminUser {
   id: string;
   full_name: string;
@@ -41,72 +43,58 @@ export interface AdminStatus {
 class AdminService {
   async isCurrentUserAdmin(): Promise<boolean> {
     try {
-      const { data, error } = await supabase.rpc('is_current_user_admin');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      if (error) {
-        console.error('AdminService: Error checking admin status:', error);
+      if (sessionError || !session) {
         return false;
       }
 
-      return data === true;
+      return session.user.email === ADMIN_EMAIL;
     } catch (error) {
       console.error('AdminService: Error in isCurrentUserAdmin:', error);
       return false;
     }
   }
 
-  /**
-   * Get detailed admin status for debugging
-   */
   async getAdminStatus(): Promise<AdminStatus | null> {
     try {
-      console.log('AdminService: Fetching detailed admin status...');
-      const { data, error } = await supabase.rpc('debug_admin_status');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      if (error) {
-        console.error('AdminService: Error getting admin status:', error);
-        return null;
+      if (sessionError || !session) {
+        return {
+          authenticated: false,
+          user_id: null,
+          user_email: null,
+          profile_exists: false,
+          profile_role: null,
+          metadata_role: null,
+          is_admin_result: false,
+          timestamp: new Date().toISOString(),
+          message: 'Not authenticated'
+        };
       }
 
-      console.log('AdminService: Admin status:', data);
-      return data as AdminStatus;
+      const isAdmin = session.user.email === ADMIN_EMAIL;
+
+      return {
+        authenticated: true,
+        user_id: session.user.id,
+        user_email: session.user.email || null,
+        profile_exists: true,
+        profile_role: isAdmin ? 'admin' : 'client',
+        metadata_role: isAdmin ? 'admin' : 'client',
+        is_admin_result: isAdmin,
+        timestamp: new Date().toISOString(),
+        message: isAdmin ? 'Admin access granted' : 'Regular user'
+      };
     } catch (error) {
       console.error('AdminService: Error in getAdminStatus:', error);
       return null;
     }
   }
 
-  /**
-   * Sync admin role between auth.users and user_profiles
-   */
-  async syncAdminRole(userId: string): Promise<boolean> {
-    try {
-      console.log('AdminService: Syncing admin role for user:', userId);
-      const { data, error } = await supabase.rpc('sync_user_admin_role', {
-        target_user_id: userId
-      });
-
-      if (error) {
-        console.error('AdminService: Error syncing admin role:', error);
-        return false;
-      }
-
-      console.log('AdminService: Admin role synced successfully:', data);
-      return true;
-    } catch (error) {
-      console.error('AdminService: Error in syncAdminRole:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Verify and fix admin access if needed
-   */
   async verifyAndFixAdminAccess(): Promise<{ success: boolean; message: string }> {
     try {
-      console.log('AdminService: Verifying admin access...');
-
-      // Get current session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
@@ -116,47 +104,18 @@ class AdminService {
         };
       }
 
-      // Get admin status
-      const adminStatus = await this.getAdminStatus();
+      const isAdmin = session.user.email === ADMIN_EMAIL;
 
-      if (!adminStatus) {
-        return {
-          success: false,
-          message: 'Failed to check admin status.'
-        };
-      }
-
-      if (!adminStatus.authenticated) {
-        return {
-          success: false,
-          message: 'User is not authenticated.'
-        };
-      }
-
-      // Check if user is admin
-      if (adminStatus.is_admin_result) {
+      if (isAdmin) {
         return {
           success: true,
           message: 'Admin access verified successfully.'
         };
       }
 
-      // Try to sync if roles don't match
-      if (adminStatus.metadata_role === 'admin' && adminStatus.profile_role !== 'admin') {
-        console.log('AdminService: Role mismatch detected. Attempting to sync...');
-        const synced = await this.syncAdminRole(session.user.id);
-
-        if (synced) {
-          return {
-            success: true,
-            message: 'Admin role synced. Please refresh the page or log out and log back in.'
-          };
-        }
-      }
-
       return {
         success: false,
-        message: 'Admin privileges not found. Contact support if you should have admin access.'
+        message: 'Admin access denied. Only primoboostai@gmail.com has admin privileges.'
       };
     } catch (error) {
       console.error('AdminService: Error in verifyAndFixAdminAccess:', error);
@@ -164,70 +123,6 @@ class AdminService {
         success: false,
         message: 'Failed to verify admin access.'
       };
-    }
-  }
-
-  async grantAdminRole(userId: string): Promise<RoleOperationResult> {
-    try {
-      const { data, error } = await supabase.rpc('grant_admin_role', {
-        target_user_id: userId
-      });
-
-      if (error) {
-        console.error('Error granting admin role:', error);
-        return {
-          success: false,
-          message: error.message || 'Failed to grant admin role'
-        };
-      }
-
-      return data as RoleOperationResult;
-    } catch (error) {
-      console.error('Error in grantAdminRole:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to grant admin role'
-      };
-    }
-  }
-
-  async revokeAdminRole(userId: string): Promise<RoleOperationResult> {
-    try {
-      const { data, error } = await supabase.rpc('revoke_admin_role', {
-        target_user_id: userId
-      });
-
-      if (error) {
-        console.error('Error revoking admin role:', error);
-        return {
-          success: false,
-          message: error.message || 'Failed to revoke admin role'
-        };
-      }
-
-      return data as RoleOperationResult;
-    } catch (error) {
-      console.error('Error in revokeAdminRole:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to revoke admin role'
-      };
-    }
-  }
-
-  async getAllAdmins(): Promise<AdminUser[]> {
-    try {
-      const { data, error } = await supabase.rpc('get_all_admins');
-
-      if (error) {
-        console.error('Error fetching admins:', error);
-        throw new Error(error.message || 'Failed to fetch admin users');
-      }
-
-      return data as AdminUser[];
-    } catch (error) {
-      console.error('Error in getAllAdmins:', error);
-      throw error;
     }
   }
 
