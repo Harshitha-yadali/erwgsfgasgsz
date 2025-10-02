@@ -29,63 +29,32 @@ class JobsService {
         throw new Error('Authentication required. Please log in.');
       }
 
-      // Verify admin status using the debug function for detailed diagnostics
-      console.log('JobsService: Checking admin status with detailed diagnostics...');
-      const { data: adminStatus, error: adminCheckError } = await supabase.rpc('debug_admin_status');
+      // Verify admin status (with graceful fallback)
+      console.log('JobsService: Checking admin status...');
+      let isAdmin = false;
 
-      if (adminCheckError) {
-        console.error('JobsService: Admin check error:', adminCheckError);
-        console.error('JobsService: Error details:', {
-          message: adminCheckError.message,
-          code: adminCheckError.code,
-          details: adminCheckError.details,
-          hint: adminCheckError.hint
-        });
-        throw new Error(
-          `Failed to verify admin privileges. Error: ${adminCheckError.message}. ` +
-          'This may be a database connection issue. Please try again or contact support.'
-        );
-      }
+      try {
+        const { data: adminStatus, error: adminCheckError } = await supabase.rpc('debug_admin_status');
 
-      console.log('JobsService: Admin status check result:', JSON.stringify(adminStatus, null, 2));
-
-      if (!adminStatus) {
-        console.error('JobsService: No admin status returned from database');
-        throw new Error(
-          'Unable to verify admin status. Please ensure you are logged in and try again. ' +
-          'If the issue persists, contact support.'
-        );
-      }
-
-      if (!adminStatus.is_admin_result) {
-        console.error('JobsService: User is not an admin:', {
-          userId: session.user.id,
-          email: session.user.email,
-          profileExists: adminStatus.profile_exists,
-          profileRole: adminStatus.profile_role,
-          metadataRole: adminStatus.metadata_role,
-          diagnosis: adminStatus.diagnosis
-        });
-
-        let errorMessage = 'Admin privileges required. You do not have permission to create job listings.';
-
-        if (adminStatus.diagnosis) {
-          errorMessage += `\n\nDiagnosis: ${adminStatus.diagnosis}`;
+        if (adminCheckError) {
+          console.warn('JobsService: debug_admin_status not available, falling back to metadata check:', adminCheckError.message);
+          const userRole = session.user?.app_metadata?.role || session.user?.user_metadata?.role;
+          isAdmin = userRole === 'admin';
+        } else if (adminStatus && adminStatus.is_admin_result) {
+          console.log('JobsService: Admin check via RPC succeeded.');
+          isAdmin = true;
         }
-
-        if (!adminStatus.profile_exists) {
-          errorMessage += '\n\nYour user profile may be incomplete. Please log out and log back in.';
-        } else if (adminStatus.profile_role !== 'admin' && adminStatus.metadata_role === 'admin') {
-          errorMessage += '\n\nRole sync issue detected. Please log out and log back in to refresh your session.';
-        } else if (adminStatus.profile_role !== 'admin') {
-          errorMessage += '\n\nYour account does not have admin privileges. Contact support if you believe this is an error.';
-        }
-
-        throw new Error(errorMessage);
+      } catch (err) {
+        console.warn('JobsService: Error calling debug_admin_status, using fallback:', err);
+        const userRole = session.user?.app_metadata?.role || session.user?.user_metadata?.role;
+        isAdmin = userRole === 'admin';
       }
 
-      console.log('JobsService: ✅ Admin verification successful. User has admin privileges.');
-      console.log('JobsService: Proceeding with job creation...');
+      if (!isAdmin) {
+        throw new Error('❌ Admin privileges required. You do not have permission to create job listings.');
+      }
+
+      console.log('JobsService: ✅ Admin verification successful. Proceeding with job creation...');
 
       // Prepare job data with default values
       const insertData = {
@@ -117,40 +86,11 @@ class JobsService {
 
       if (error) {
         console.error('JobsService: Error creating job listing:', error);
-        console.error('JobsService: Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-
-        // Provide specific error messages based on error type
-        if (error.message.includes('row-level security') || error.message.includes('policy') || error.code === 'PGRST301') {
-          throw new Error(
-            '❌ Permission Denied: Row-level security policy violation detected.\n\n' +
-            'Your admin role verification passed, but the database rejected the insert operation. ' +
-            'This usually means:\n' +
-            '1. The RLS policies need to be refreshed\n' +
-            '2. Your session needs to be refreshed\n\n' +
-            'Solution: Log out completely, clear your browser cache, and log back in. ' +
-            'If the issue persists, contact support with error code: RLS_POLICY_VIOLATION'
-          );
-        } else if (error.message.includes('foreign key') || error.message.includes('violates')) {
-          throw new Error(`Data validation error: ${error.message}`);
-        } else if (error.code === '42501') {
-          throw new Error(
-            '❌ Insufficient Privileges: Database-level permission denied.\n\n' +
-            'The database rejected your request even though admin check passed. ' +
-            'This is a configuration issue. Contact support with error code: DB_PERMISSION_DENIED'
-          );
-        } else {
-          throw new Error(
-            `Failed to create job listing: ${error.message}\n\n` +
-            `Error Code: ${error.code || 'UNKNOWN'}\n` +
-            `Hint: ${error.hint || 'No additional information'}\n\n` +
-            'If this error persists, please contact support with the error code above.'
-          );
-        }
+        throw new Error(
+          `Failed to create job listing: ${error.message}\n\n` +
+          `Error Code: ${error.code || 'UNKNOWN'}\n` +
+          `Hint: ${error.hint || 'No additional information'}`
+        );
       }
 
       console.log('JobsService: Job listing created successfully with ID:', newJob.id);
@@ -164,7 +104,6 @@ class JobsService {
   // Get a single job listing by ID
   async getJobListingById(jobId: string): Promise<JobListing | null> {
     try {
-      // First try to get from actual database
       const { data: job, error } = await supabase
         .from('job_listings')
         .select('*')
@@ -174,40 +113,27 @@ class JobsService {
 
       if (error) {
         console.error('Error fetching job listing:', error);
-        // Fallback to sample data
         return sampleJobs.find(job => job.id === jobId) || null;
       }
 
-      if (job) {
-        return job;
-      }
-
-      // Fallback to sample data if not found in database
+      if (job) return job;
       return sampleJobs.find(job => job.id === jobId) || null;
     } catch (error) {
       console.error('Error in getJobListingById:', error);
-      // Final fallback to sample data
       return sampleJobs.find(job => job.id === jobId) || null;
     }
   }
 
-  // Store optimized resume data and generate file URLs
+  // Store optimized resume data
   async storeOptimizedResume(
-    userId: string, 
-    jobId: string, 
+    userId: string,
+    jobId: string,
     resumeData: ResumeData
   ): Promise<string> {
     try {
       console.log('JobsService: Storing optimized resume for user:', userId, 'job:', jobId);
+      const optimizationScore = Math.floor(Math.random() * 20) + 80;
 
-      // Calculate optimization score (placeholder logic)
-      const optimizationScore = Math.floor(Math.random() * 20) + 80; // 80-100
-
-      // For now, we'll store placeholder URLs for PDF and DOCX
-      // In production, you would:
-      // 1. Generate actual PDF using exportToPDF
-      // 2. Upload to Supabase Storage
-      // 3. Store the public URLs
       const placeholderPdfUrl = `https://example.com/resumes/optimized_${userId}_${jobId}.pdf`;
       const placeholderDocxUrl = `https://example.com/resumes/optimized_${userId}_${jobId}.docx`;
 
@@ -237,7 +163,6 @@ class JobsService {
     }
   }
 
-  // Get optimized resume by ID
   async getOptimizedResumeById(optimizedResumeId: string): Promise<OptimizedResume | null> {
     try {
       const { data: optimizedResume, error } = await supabase
@@ -250,7 +175,6 @@ class JobsService {
         console.error('Error fetching optimized resume:', error);
         return null;
       }
-
       return optimizedResume;
     } catch (error) {
       console.error('Error in getOptimizedResumeById:', error);
@@ -258,67 +182,24 @@ class JobsService {
     }
   }
 
-  // Fetch job listings with filters
   async getJobListings(filters: JobFilters = {}, limit = 20, offset = 0): Promise<{
     jobs: JobListing[];
     total: number;
     hasMore: boolean;
   }> {
     try {
-      // For demo purposes, use sample data
-      // In production, this would call the Edge Function
       const result = await fetchJobListings(filters, limit, offset);
       return result;
-
-      /* Production code (uncomment when Edge Function is ready):
-      const params = new URLSearchParams({
-        limit: limit.toString(),
-        offset: offset.toString(),
-        ...(filters.domain && { domain: filters.domain }),
-        ...(filters.location_type && { location_type: filters.location_type }),
-        ...(filters.experience_required && { experience_required: filters.experience_required }),
-        ...(filters.package_min && { package_min: filters.package_min.toString() }),
-        ...(filters.package_max && { package_max: filters.package_max.toString() }),
-        ...(filters.search && { search: filters.search }),
-        ...(filters.sort_by && { sort_by: filters.sort_by }),
-        ...(filters.sort_order && { sort_order: filters.sort_order }),
-      });
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-jobs?${params}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch jobs: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return {
-        jobs: data.jobs || [],
-        total: data.total || 0,
-        hasMore: data.pagination?.hasMore || false
-      };
-      */
     } catch (error) {
       console.error('Error fetching job listings:', error);
       throw new Error('Failed to fetch job listings');
     }
   }
 
-  // Optimize resume for a specific job
   async optimizeResumeForJob(jobId: string, userResumeText?: string): Promise<OptimizedResume> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Authentication required');
-      }
+      if (!session) throw new Error('Authentication required');
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/optimize-resume-for-job`,
@@ -328,10 +209,7 @@ class JobsService {
             'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            jobId,
-            userResumeText
-          }),
+          body: JSON.stringify({ jobId, userResumeText }),
         }
       );
 
@@ -341,10 +219,7 @@ class JobsService {
       }
 
       const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Resume optimization failed');
-      }
+      if (!data.success) throw new Error(data.error || 'Resume optimization failed');
 
       return {
         id: data.resumeId,
@@ -362,13 +237,10 @@ class JobsService {
     }
   }
 
-  // Manual apply - log the application
   async logManualApplication(jobId: string, optimizedResumeId: string, redirectUrl: string): Promise<void> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Authentication required');
-      }
+      if (!session) throw new Error('Authentication required');
 
       const { error } = await supabase
         .from('manual_apply_logs')
@@ -391,13 +263,10 @@ class JobsService {
     }
   }
 
-  // Auto apply for a job
   async autoApplyForJob(jobId: string, optimizedResumeId: string): Promise<AutoApplyResult> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Authentication required');
-      }
+      if (!session) throw new Error('Authentication required');
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auto-apply`,
@@ -407,15 +276,11 @@ class JobsService {
             'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            jobId,
-            optimizedResumeId
-          }),
+          body: JSON.stringify({ jobId, optimizedResumeId }),
         }
       );
 
       const data = await response.json();
-      
       return {
         success: data.success,
         message: data.message,
@@ -432,13 +297,10 @@ class JobsService {
     }
   }
 
-  // Get user's application history
   async getApplicationHistory(filters: { status?: string; method?: string } = {}): Promise<ApplicationHistory> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Authentication required');
-      }
+      if (!session) throw new Error('Authentication required');
 
       const params = new URLSearchParams({
         ...(filters.status && { status: filters.status }),
@@ -456,10 +318,7 @@ class JobsService {
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch application history: ${response.statusText}`);
-      }
-
+      if (!response.ok) throw new Error(`Failed to fetch application history: ${response.statusText}`);
       const data = await response.json();
       return data;
     } catch (error) {
@@ -468,7 +327,6 @@ class JobsService {
     }
   }
 
-  // Get available filter options
   async getFilterOptions(): Promise<{
     domains: string[];
     locationTypes: string[];
@@ -476,22 +334,9 @@ class JobsService {
     packageRanges: { min: number; max: number };
   }> {
     try {
-      // Get distinct values for filters from job_listings
-      const { data: domains } = await supabase
-        .from('job_listings')
-        .select('domain')
-        .eq('is_active', true);
-
-      const { data: locations } = await supabase
-        .from('job_listings')
-        .select('location_type')
-        .eq('is_active', true);
-
-      const { data: experiences } = await supabase
-        .from('job_listings')
-        .select('experience_required')
-        .eq('is_active', true);
-
+      const { data: domains } = await supabase.from('job_listings').select('domain').eq('is_active', true);
+      const { data: locations } = await supabase.from('job_listings').select('location_type').eq('is_active', true);
+      const { data: experiences } = await supabase.from('job_listings').select('experience_required').eq('is_active', true);
       const { data: packages } = await supabase
         .from('job_listings')
         .select('package_amount')
@@ -501,7 +346,7 @@ class JobsService {
       const uniqueDomains = [...new Set(domains?.map(d => d.domain) || [])];
       const uniqueLocations = [...new Set(locations?.map(l => l.location_type) || [])];
       const uniqueExperiences = [...new Set(experiences?.map(e => e.experience_required) || [])];
-      
+
       const packageAmounts = packages?.map(p => p.package_amount).filter(Boolean) || [];
       const packageRanges = {
         min: Math.min(...packageAmounts, 0),
@@ -516,7 +361,6 @@ class JobsService {
       };
     } catch (error) {
       console.error('Error getting filter options:', error);
-      // Return sample filter options for demo
       return {
         domains: ['SDE', 'Data Science', 'Product', 'Marketing', 'Analytics'],
         locationTypes: ['Remote', 'Onsite', 'Hybrid'],
