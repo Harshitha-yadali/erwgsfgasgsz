@@ -1,8 +1,26 @@
-# PrimoBoost AI - Auto-Apply Feature Implementation
+# PrimoBoost AI - Resume Optimization Platform
+
+## 🚀 Quick Start
+
+**Database Status**: ✅ Migrated to production Supabase instance (January 2025)
+**Database URL**: `https://rixmudvtbfkjpwjoefon.supabase.co`
+
+### Setup Instructions
+1. **Database Setup**: See `QUICK_START_NEW_DATABASE.md` for 3-step migration guide
+2. **Development**: Run `npm install` and `npm run dev`
+3. **Build**: Run `npm run build` to compile for production
+
+### Important Files
+- `QUICK_START_NEW_DATABASE.md` - Quick migration guide
+- `MIGRATION_INSTRUCTIONS.md` - Detailed migration steps
+- `DATABASE_MIGRATION_COMPLETE.md` - Migration summary
+- `verify-migration.sql` - Database verification script
+
+---
 
 ## Overview
 
-This document outlines the implementation of the intelligent auto-apply feature for PrimoBoost AI, which enables users to automatically apply to jobs with AI-optimized resumes.
+PrimoBoost AI is an intelligent resume optimization platform with auto-apply feature that enables users to automatically apply to jobs with AI-optimized resumes.
 
 ## Architecture
 

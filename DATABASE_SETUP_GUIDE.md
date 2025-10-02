@@ -5,7 +5,8 @@ This guide will help you set up the database functions and permissions required 
 ## Current Database Configuration
 
 - **Supabase URL**: `https://rixmudvtbfkjpwjoefon.supabase.co`
-- **Environment File**: `.env` (already updated)
+- **Environment File**: `.env` ✅ UPDATED (January 2025)
+- **Migration Status**: ⚠️ PENDING - See MIGRATION_INSTRUCTIONS.md for complete setup
 
 ## Quick Setup Steps
 
