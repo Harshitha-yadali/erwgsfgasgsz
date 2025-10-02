@@ -11,20 +11,47 @@ class JobsService {
   async createJobListing(jobData: Partial<JobListing>): Promise<JobListing> {
     try {
       console.log('JobsService: Creating new job listing...');
-      
+
       // Validate required fields
-      if (!jobData.company_name || !jobData.role_title || !jobData.domain || 
-          !jobData.location_type || !jobData.experience_required || 
-          !jobData.qualification || !jobData.short_description || 
+      if (!jobData.company_name || !jobData.role_title || !jobData.domain ||
+          !jobData.location_type || !jobData.experience_required ||
+          !jobData.qualification || !jobData.short_description ||
           !jobData.full_description || !jobData.application_link) {
         throw new Error('Missing required job listing fields');
       }
 
       // Get current session for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Authentication required');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('JobsService: Session error:', sessionError);
+        throw new Error('Failed to verify authentication. Please log out and log back in.');
       }
+      if (!session) {
+        throw new Error('Authentication required. Please log in.');
+      }
+
+      // Verify admin status using the debug function
+      console.log('JobsService: Checking admin status...');
+      const { data: adminStatus, error: adminCheckError } = await supabase.rpc('debug_admin_status');
+
+      if (adminCheckError) {
+        console.error('JobsService: Admin check error:', adminCheckError);
+        throw new Error('Failed to verify admin privileges. Please contact support.');
+      }
+
+      console.log('JobsService: Admin status check result:', adminStatus);
+
+      if (!adminStatus?.is_admin_result) {
+        console.error('JobsService: User is not an admin:', {
+          userId: session.user.id,
+          email: session.user.email,
+          profileRole: adminStatus?.profile_role,
+          metadataRole: adminStatus?.metadata_role
+        });
+        throw new Error('Admin privileges required. You do not have permission to create job listings.');
+      }
+
+      console.log('JobsService: Admin verification successful. Proceeding with job creation...');
 
       // Prepare job data with default values
       const insertData = {
@@ -56,7 +83,21 @@ class JobsService {
 
       if (error) {
         console.error('JobsService: Error creating job listing:', error);
-        throw new Error(`Failed to create job listing: ${error.message}`);
+        console.error('JobsService: Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+
+        // Provide specific error messages based on error type
+        if (error.message.includes('row-level security') || error.message.includes('policy')) {
+          throw new Error('Permission denied: Your admin role may not be properly configured. Please log out and log back in. If the issue persists, contact support.');
+        } else if (error.message.includes('foreign key') || error.message.includes('violates')) {
+          throw new Error(`Data validation error: ${error.message}`);
+        } else {
+          throw new Error(`Failed to create job listing: ${error.message}`);
+        }
       }
 
       console.log('JobsService: Job listing created successfully with ID:', newJob.id);

@@ -25,20 +25,145 @@ export interface RoleOperationResult {
   user_email?: string;
 }
 
+export interface AdminStatus {
+  authenticated: boolean;
+  user_id: string | null;
+  user_email: string | null;
+  profile_exists: boolean;
+  profile_role: string | null;
+  metadata_role: string | null;
+  is_admin_result: boolean;
+  timestamp: string;
+  message?: string;
+  raw_metadata?: any;
+}
+
 class AdminService {
   async isCurrentUserAdmin(): Promise<boolean> {
     try {
       const { data, error } = await supabase.rpc('is_current_user_admin');
 
       if (error) {
-        console.error('Error checking admin status:', error);
+        console.error('AdminService: Error checking admin status:', error);
         return false;
       }
 
       return data === true;
     } catch (error) {
-      console.error('Error in isCurrentUserAdmin:', error);
+      console.error('AdminService: Error in isCurrentUserAdmin:', error);
       return false;
+    }
+  }
+
+  /**
+   * Get detailed admin status for debugging
+   */
+  async getAdminStatus(): Promise<AdminStatus | null> {
+    try {
+      console.log('AdminService: Fetching detailed admin status...');
+      const { data, error } = await supabase.rpc('debug_admin_status');
+
+      if (error) {
+        console.error('AdminService: Error getting admin status:', error);
+        return null;
+      }
+
+      console.log('AdminService: Admin status:', data);
+      return data as AdminStatus;
+    } catch (error) {
+      console.error('AdminService: Error in getAdminStatus:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Sync admin role between auth.users and user_profiles
+   */
+  async syncAdminRole(userId: string): Promise<boolean> {
+    try {
+      console.log('AdminService: Syncing admin role for user:', userId);
+      const { data, error } = await supabase.rpc('sync_user_admin_role', {
+        target_user_id: userId
+      });
+
+      if (error) {
+        console.error('AdminService: Error syncing admin role:', error);
+        return false;
+      }
+
+      console.log('AdminService: Admin role synced successfully:', data);
+      return true;
+    } catch (error) {
+      console.error('AdminService: Error in syncAdminRole:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Verify and fix admin access if needed
+   */
+  async verifyAndFixAdminAccess(): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('AdminService: Verifying admin access...');
+
+      // Get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        return {
+          success: false,
+          message: 'No active session. Please log in.'
+        };
+      }
+
+      // Get admin status
+      const adminStatus = await this.getAdminStatus();
+
+      if (!adminStatus) {
+        return {
+          success: false,
+          message: 'Failed to check admin status.'
+        };
+      }
+
+      if (!adminStatus.authenticated) {
+        return {
+          success: false,
+          message: 'User is not authenticated.'
+        };
+      }
+
+      // Check if user is admin
+      if (adminStatus.is_admin_result) {
+        return {
+          success: true,
+          message: 'Admin access verified successfully.'
+        };
+      }
+
+      // Try to sync if roles don't match
+      if (adminStatus.metadata_role === 'admin' && adminStatus.profile_role !== 'admin') {
+        console.log('AdminService: Role mismatch detected. Attempting to sync...');
+        const synced = await this.syncAdminRole(session.user.id);
+
+        if (synced) {
+          return {
+            success: true,
+            message: 'Admin role synced. Please refresh the page or log out and log back in.'
+          };
+        }
+      }
+
+      return {
+        success: false,
+        message: 'Admin privileges not found. Contact support if you should have admin access.'
+      };
+    } catch (error) {
+      console.error('AdminService: Error in verifyAndFixAdminAccess:', error);
+      return {
+        success: false,
+        message: 'Failed to verify admin access.'
+      };
     }
   }
 
