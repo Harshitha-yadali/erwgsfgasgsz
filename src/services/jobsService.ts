@@ -4,7 +4,6 @@ import { JobListing, JobFilters, AutoApplyResult, ApplicationHistory, OptimizedR
 import { sampleJobs, fetchJobListings } from './sampleJobsData';
 import { ResumeData } from '../types/resume';
 import { exportToPDF } from '../utils/exportUtils';
-import { supabase } from '../lib/supabaseClient';
 
 class JobsService {
   // Create a new job listing (Admin only)
@@ -30,28 +29,63 @@ class JobsService {
         throw new Error('Authentication required. Please log in.');
       }
 
-      // Verify admin status using the debug function
-      console.log('JobsService: Checking admin status...');
+      // Verify admin status using the debug function for detailed diagnostics
+      console.log('JobsService: Checking admin status with detailed diagnostics...');
       const { data: adminStatus, error: adminCheckError } = await supabase.rpc('debug_admin_status');
 
       if (adminCheckError) {
         console.error('JobsService: Admin check error:', adminCheckError);
-        throw new Error('Failed to verify admin privileges. Please contact support.');
+        console.error('JobsService: Error details:', {
+          message: adminCheckError.message,
+          code: adminCheckError.code,
+          details: adminCheckError.details,
+          hint: adminCheckError.hint
+        });
+        throw new Error(
+          `Failed to verify admin privileges. Error: ${adminCheckError.message}. ` +
+          'This may be a database connection issue. Please try again or contact support.'
+        );
       }
 
-      console.log('JobsService: Admin status check result:', adminStatus);
+      console.log('JobsService: Admin status check result:', JSON.stringify(adminStatus, null, 2));
 
-      if (!adminStatus?.is_admin_result) {
+      if (!adminStatus) {
+        console.error('JobsService: No admin status returned from database');
+        throw new Error(
+          'Unable to verify admin status. Please ensure you are logged in and try again. ' +
+          'If the issue persists, contact support.'
+        );
+      }
+
+      if (!adminStatus.is_admin_result) {
         console.error('JobsService: User is not an admin:', {
           userId: session.user.id,
           email: session.user.email,
-          profileRole: adminStatus?.profile_role,
-          metadataRole: adminStatus?.metadata_role
+          profileExists: adminStatus.profile_exists,
+          profileRole: adminStatus.profile_role,
+          metadataRole: adminStatus.metadata_role,
+          diagnosis: adminStatus.diagnosis
         });
-        throw new Error('Admin privileges required. You do not have permission to create job listings.');
+
+        let errorMessage = 'Admin privileges required. You do not have permission to create job listings.';
+
+        if (adminStatus.diagnosis) {
+          errorMessage += `\n\nDiagnosis: ${adminStatus.diagnosis}`;
+        }
+
+        if (!adminStatus.profile_exists) {
+          errorMessage += '\n\nYour user profile may be incomplete. Please log out and log back in.';
+        } else if (adminStatus.profile_role !== 'admin' && adminStatus.metadata_role === 'admin') {
+          errorMessage += '\n\nRole sync issue detected. Please log out and log back in to refresh your session.';
+        } else if (adminStatus.profile_role !== 'admin') {
+          errorMessage += '\n\nYour account does not have admin privileges. Contact support if you believe this is an error.';
+        }
+
+        throw new Error(errorMessage);
       }
 
-      console.log('JobsService: Admin verification successful. Proceeding with job creation...');
+      console.log('JobsService: ✅ Admin verification successful. User has admin privileges.');
+      console.log('JobsService: Proceeding with job creation...');
 
       // Prepare job data with default values
       const insertData = {
@@ -91,12 +125,31 @@ class JobsService {
         });
 
         // Provide specific error messages based on error type
-        if (error.message.includes('row-level security') || error.message.includes('policy')) {
-          throw new Error('Permission denied: Your admin role may not be properly configured. Please log out and log back in. If the issue persists, contact support.');
+        if (error.message.includes('row-level security') || error.message.includes('policy') || error.code === 'PGRST301') {
+          throw new Error(
+            '❌ Permission Denied: Row-level security policy violation detected.\n\n' +
+            'Your admin role verification passed, but the database rejected the insert operation. ' +
+            'This usually means:\n' +
+            '1. The RLS policies need to be refreshed\n' +
+            '2. Your session needs to be refreshed\n\n' +
+            'Solution: Log out completely, clear your browser cache, and log back in. ' +
+            'If the issue persists, contact support with error code: RLS_POLICY_VIOLATION'
+          );
         } else if (error.message.includes('foreign key') || error.message.includes('violates')) {
           throw new Error(`Data validation error: ${error.message}`);
+        } else if (error.code === '42501') {
+          throw new Error(
+            '❌ Insufficient Privileges: Database-level permission denied.\n\n' +
+            'The database rejected your request even though admin check passed. ' +
+            'This is a configuration issue. Contact support with error code: DB_PERMISSION_DENIED'
+          );
         } else {
-          throw new Error(`Failed to create job listing: ${error.message}`);
+          throw new Error(
+            `Failed to create job listing: ${error.message}\n\n` +
+            `Error Code: ${error.code || 'UNKNOWN'}\n` +
+            `Hint: ${error.hint || 'No additional information'}\n\n` +
+            'If this error persists, please contact support with the error code above.'
+          );
         }
       }
 
