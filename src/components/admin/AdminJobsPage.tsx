@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, CreditCard as Edit, Trash2, Eye, ToggleLeft, ToggleRight, ArrowLeft, Briefcase, MapPin, Clock, IndianRupee, Building2, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { Plus, Search, Filter, CreditCard as Edit, Trash2, Eye, ToggleLeft, ToggleRight, ArrowLeft, Briefcase, MapPin, Clock, IndianRupee, Building2, AlertCircle, Loader2, CheckCircle, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { JobListing } from '../../types/jobs';
 
@@ -127,13 +127,22 @@ export const AdminJobsPage: React.FC = () => {
               <span className="hidden sm:block">Back to Home</span>
             </button>
             <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Admin - Manage Jobs</h1>
-            <button
-              onClick={() => navigate('/admin/jobs/new')}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-3 px-5 rounded-xl inline-flex items-center space-x-2 transition-all duration-200 shadow-lg"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:block">Create Job</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => navigate('/admin/users')}
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-3 px-5 rounded-xl inline-flex items-center space-x-2 transition-all duration-200 shadow-lg"
+              >
+                <Users className="w-5 h-5" />
+                <span className="hidden sm:block">Manage Users</span>
+              </button>
+              <button
+                onClick={() => navigate('/admin/jobs/new')}
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-3 px-5 rounded-xl inline-flex items-center space-x-2 transition-all duration-200 shadow-lg"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="hidden sm:block">Create Job</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

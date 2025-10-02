@@ -32,6 +32,7 @@ import { AdminRoute } from './components/admin/AdminRoute';
 import { JobUploadForm } from './components/admin/JobUploadForm';
 import { AdminJobsPage } from './components/admin/AdminJobsPage';
 import { JobEditPage } from './components/admin/JobEditPage';
+import { AdminUsersPage } from './components/admin/AdminUsersPage';
 
 function App() {
   const { isAuthenticated, user, markProfilePromptSeen, isLoading } = useAuth();
@@ -448,6 +449,11 @@ function App() {
         <Route path="/admin/jobs/:jobId/edit" element={
           <AdminRoute>
             <JobEditPage />
+          </AdminRoute>
+        } />
+        <Route path="/admin/users" element={
+          <AdminRoute>
+            <AdminUsersPage />
           </AdminRoute>
         } />
       </Routes>
